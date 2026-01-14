@@ -8,7 +8,6 @@ resolution-markers = [
     "python_full_version == '3.9.*'",
     "python_full_version < '3.9'",
 ]
-
 [[package]]
 name = "certifi"
 version = "2026.1.4"

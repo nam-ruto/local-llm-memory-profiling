@@ -8,7 +8,7 @@ license = { text = "MIT" }
 authors = [
     { name = "Research Project", email = "" }
 ]
-keywords = ["llm", "memory-profiling", "kv-cache", "ollama", "llama.cpp", "webllm"]
+keywords = ["llm", "memory-profiling", "kv-cache", "ollama", "llama.cpp", "webllm", "on-device-llm"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
