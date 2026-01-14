@@ -24,6 +24,7 @@ dist/
 *.swp
 *.swo
 *~
+.cursor/
 
 # Project-specific
 *.csv
@@ -31,3 +32,6 @@ dist/
 
 # macOS
 .DS_Store
+
+# environment variables
+.env
