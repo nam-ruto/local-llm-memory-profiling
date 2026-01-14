@@ -25,31 +25,28 @@ All profilers output CSV data in a consistent format for easy comparison.
 
 ### Setup
 
-#### Option 1: Using `uv` (Recommended - Fast)
+#### Using `uv` (Recommended)
 
 ```bash
-# Sync project (creates venv and installs dependencies from pyproject.toml)
+# Sync project (creates venv and installs dependencies)
 uv sync
 
 # Activate virtual environment
 source .venv/bin/activate
-
-# Now you can run the scripts
-python memory_profiler.py --help
 ```
 
-#### Option 2: Using standard `pip`
+#### Using standard `pip`
 
 ```bash
-# Create virtual environment (optional but recommended)
+# Create virtual environment
 python -m venv .venv
 source .venv/bin/activate
 
-# Install Python dependencies
+# Install dependencies
 pip install -r requirements.txt
 ```
 
-**Note**: This project uses `pyproject.toml` for dependency management. The `requirements.txt` file is kept for backward compatibility but `uv sync` is the recommended method.
+**Note**: This project uses `pyproject.toml` for dependency management. The `requirements.txt` file is kept for backward compatibility.
 
 ## Usage
 
@@ -74,6 +71,8 @@ python memory_profiler.py --name "ollama" --label "ollama-run1" --output results
 timestamp,label,pid,rss_mb,vms_mb
 2024-01-15T10:30:00.123456,ollama-run1,12345,512.34,2048.67
 ```
+
+The profiler automatically detects when the target process starts and stops sampling when it exits.
 
 ### 2. Ollama Runner
 
@@ -165,7 +164,7 @@ Memory profiling for browser-based LLM inference.
 
 #### Advanced Usage
 
-For more control, use the `WebLLMProfiler` class from `webllm_profiler_advanced.js`:
+For programmatic control, use the `WebLLMProfiler` class from `webllm_profiler_advanced.js`:
 
 ```javascript
 const profiler = new WebLLMProfiler('Llama-3.2-1B-Instruct-q4f16_1', {
@@ -182,7 +181,7 @@ const result = await profiler.complete("The quick brown fox", {
 profiler.downloadCSV();
 ```
 
-## Complete Workflow Example
+## Complete Workflow Examples
 
 ### Profiling Ollama
 
@@ -222,10 +221,11 @@ python run_llamacpp.py \
 
 ### Profiling WebLLM
 
-1. Launch Chrome with memory API enabled
+1. Launch Chrome with memory API enabled (see WebLLM Profiler section above)
 2. Open `webllm_profiler.html`
-3. Configure and run inference
-4. Export CSV
+3. Configure model, prompt, and max tokens
+4. Click "Start Profiling" and wait for inference to complete
+5. Click "Export CSV" to download results
 
 ## Data Analysis
 
@@ -252,6 +252,7 @@ print(f"WebLLM peak heap: {webllm['heap_used_mb'].max():.2f} MB")
 1. **Process name variations:**
    - Ollama might appear as `ollama` or `Ollama` (case-insensitive matching handles this)
    - llama.cpp might be `llama-cli`, `main`, or `llama` depending on build
+   - Check process name with: `ps aux | grep ollama`
 
 2. **Short-lived processes:**
    - The profiler waits up to 10 seconds for processes to appear
@@ -260,7 +261,7 @@ print(f"WebLLM peak heap: {webllm['heap_used_mb'].max():.2f} MB")
 
 3. **Permission issues:**
    - macOS may require Terminal/IDE to have "Full Disk Access" for process monitoring
-   - If you see "AccessDenied" errors, grant permissions in System Settings
+   - If you see "AccessDenied" errors, grant permissions in System Settings → Privacy & Security
 
 4. **Memory measurement accuracy:**
    - RSS (Resident Set Size) is the most relevant for physical memory
@@ -287,8 +288,8 @@ print(f"WebLLM peak heap: {webllm['heap_used_mb'].max():.2f} MB")
 ### General Issues
 
 1. **Process not found:**
-   - Ensure process is running before starting profiler
-   - Check process name with: `ps aux | grep ollama`
+   - Ensure process is running before starting profiler (or start profiler first, it will wait)
+   - Check process name with: `ps aux | grep <process-name>`
    - Use command substring if process name varies
 
 2. **Sampling rate:**
@@ -302,7 +303,7 @@ print(f"WebLLM peak heap: {webllm['heap_used_mb'].max():.2f} MB")
    - Close other applications to minimize interference
    - Run multiple times and average results
 
-## File Structure
+## Project Structure
 
 ```
 kv-caching/
@@ -356,7 +357,3 @@ To align memory samples with token generation:
 ## License
 
 Research use only. See project license for details.
-
-## Contributing
-
-This is a research tool. For improvements or bug reports, please open an issue.
