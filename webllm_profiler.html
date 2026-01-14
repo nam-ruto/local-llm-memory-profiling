@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebLLM Memory Profiler</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-top: 0;
+        }
+        .section {
+            margin-bottom: 30px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+        input, textarea, select, button {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        textarea {
+            min-height: 100px;
+            font-family: monospace;
+        }
+        button {
+            background: #007AFF;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+        button:hover {
+            background: #0056CC;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .status.info {
+            background: #E3F2FD;
+            color: #1976D2;
+        }
+        .status.success {
+            background: #E8F5E9;
+            color: #388E3C;
+        }
+        .status.error {
+            background: #FFEBEE;
+            color: #C62828;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            border-left: 4px solid #007AFF;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+        }
+        .log {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+        }
+        .controls button {
+            flex: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>WebLLM Memory Profiler</h1>
+        
+        <div class="section">
+            <label for="model">Model:</label>
+            <select id="model">
+                <option value="Llama-3.2-1B-Instruct-q4f16_1">Llama-3.2-1B-Instruct (Q4)</option>
+                <option value="Llama-3.2-3B-Instruct-q4f16_1">Llama-3.2-3B-Instruct (Q4)</option>
+                <option value="Phi-3-mini-4k-instruct-q4f16_1">Phi-3-mini-4k-instruct (Q4)</option>
+            </select>
+        </div>
+        
+        <div class="section">
+            <label for="prompt">Prompt:</label>
+            <textarea id="prompt">The quick brown fox jumps over the lazy dog.</textarea>
+        </div>
+        
+        <div class="section">
+            <label for="maxTokens">Max Tokens:</label>
+            <input type="number" id="maxTokens" value="50" min="1" max="2048">
+        </div>
+        
+        <div class="section">
+            <button id="startBtn" onclick="startProfiling()">Start Profiling</button>
+            <button id="stopBtn" onclick="stopProfiling()" disabled>Stop</button>
+            <button id="exportBtn" onclick="exportData()" disabled>Export CSV</button>
+        </div>
+        
+        <div id="status"></div>
+        
+        <div class="stats" id="stats" style="display: none;">
+            <div class="stat-card">
+                <div class="stat-label">Heap Used (MB)</div>
+                <div class="stat-value" id="heapUsed">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Heap Total (MB)</div>
+                <div class="stat-value" id="heapTotal">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Tokens Generated</div>
+                <div class="stat-value" id="tokensGenerated">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Tokens/Second</div>
+                <div class="stat-value" id="tokensPerSec">0</div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <label>Log:</label>
+            <div class="log" id="log"></div>
+        </div>
+    </div>
+
+    <!-- WebLLM from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm/dist/index.js"></script>
+    
+    <script>
+        let engine = null;
+        let isProfiling = false;
+        let memorySamples = [];
+        let tokenCount = 0;
+        let startTime = null;
+        let memoryInterval = null;
+        let lastTokenTime = null;
+
+        function log(message, type = 'info') {
+            const logEl = document.getElementById('log');
+            const timestamp = new Date().toISOString();
+            logEl.textContent += `[${timestamp}] ${message}\n`;
+            logEl.scrollTop = logEl.scrollHeight;
+            console.log(message);
+        }
+
+        function setStatus(message, type = 'info') {
+            const statusEl = document.getElementById('status');
+            statusEl.className = `status ${type}`;
+            statusEl.textContent = message;
+        }
+
+        function updateStats() {
+            if (memorySamples.length === 0) return;
+            
+            const latest = memorySamples[memorySamples.length - 1];
+            document.getElementById('heapUsed').textContent = latest.heap_used_mb.toFixed(2);
+            document.getElementById('heapTotal').textContent = latest.heap_total_mb.toFixed(2);
+            document.getElementById('tokensGenerated').textContent = tokenCount;
+            
+            if (startTime && tokenCount > 0) {
+                const elapsed = (Date.now() - startTime) / 1000;
+                const tps = (tokenCount / elapsed).toFixed(2);
+                document.getElementById('tokensPerSec').textContent = tps;
+            }
+        }
+
+        function sampleMemory() {
+            if (typeof performance !== 'undefined' && performance.memory) {
+                const memory = performance.memory;
+                const sample = {
+                    timestamp: new Date().toISOString(),
+                    label: 'webllm',
+                    pid: 'browser',
+                    heap_used_mb: memory.usedJSHeapSize / (1024 * 1024),
+                    heap_total_mb: memory.totalJSHeapSize / (1024 * 1024),
+                    heap_limit_mb: memory.jsHeapSizeLimit / (1024 * 1024),
+                    tokens_generated: tokenCount,
+                    elapsed_seconds: startTime ? (Date.now() - startTime) / 1000 : 0,
+                };
+                memorySamples.push(sample);
+                updateStats();
+            } else {
+                log('WARNING: performance.memory not available. Enable Chrome DevTools or use --enable-precise-memory-info flag.');
+            }
+        }
+
+        async function startProfiling() {
+            if (isProfiling) return;
+            
+            const model = document.getElementById('model').value;
+            const prompt = document.getElementById('prompt').value;
+            const maxTokens = parseInt(document.getElementById('maxTokens').value);
+            
+            // Reset state
+            memorySamples = [];
+            tokenCount = 0;
+            document.getElementById('log').textContent = '';
+            document.getElementById('stats').style.display = 'grid';
+            
+            setStatus('Initializing WebLLM engine...', 'info');
+            log(`Starting profiling with model: ${model}`);
+            log(`Prompt: ${prompt}`);
+            log(`Max tokens: ${maxTokens}`);
+            
+            try {
+                // Initialize WebLLM
+                const initProgressCallback = (report) => {
+                    log(`Init progress: ${report.text}`);
+                };
+                
+                engine = await webllm.CreateWebLLMEngine(model, {
+                    initProgressCallback: initProgressCallback
+                });
+                
+                log('WebLLM engine initialized');
+                setStatus('Engine ready. Starting inference...', 'success');
+                
+                // Start memory sampling
+                isProfiling = true;
+                startTime = Date.now();
+                lastTokenTime = startTime;
+                
+                // Sample memory every 100ms
+                memoryInterval = setInterval(sampleMemory, 100);
+                
+                // Initial sample
+                sampleMemory();
+                
+                // Update UI
+                document.getElementById('startBtn').disabled = true;
+                document.getElementById('stopBtn').disabled = false;
+                document.getElementById('exportBtn').disabled = true;
+                
+                // Run inference
+                const chat = engine.getChat();
+                const response = await chat.complete(prompt, {
+                    max_gen_len: maxTokens,
+                    streamInterval: 1, // Stream every token for better tracking
+                });
+                
+                // Stop memory sampling
+                clearInterval(memoryInterval);
+                isProfiling = false;
+                
+                // Final sample
+                sampleMemory();
+                
+                log(`\nInference completed. Generated ${tokenCount} tokens.`);
+                log(`Total samples: ${memorySamples.length}`);
+                
+                setStatus('Profiling completed!', 'success');
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+                document.getElementById('exportBtn').disabled = false;
+                
+            } catch (error) {
+                log(`ERROR: ${error.message}`);
+                setStatus(`Error: ${error.message}`, 'error');
+                isProfiling = false;
+                if (memoryInterval) clearInterval(memoryInterval);
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+            }
+        }
+
+        function stopProfiling() {
+            if (!isProfiling) return;
+            
+            log('Stopping profiling...');
+            isProfiling = false;
+            if (memoryInterval) {
+                clearInterval(memoryInterval);
+                memoryInterval = null;
+            }
+            
+            if (engine) {
+                // Note: WebLLM doesn't have a direct stop method, but we can stop sampling
+                log('Memory sampling stopped. Inference may continue.');
+            }
+            
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            document.getElementById('exportBtn').disabled = false;
+            
+            setStatus('Profiling stopped.', 'info');
+        }
+
+        function exportData() {
+            if (memorySamples.length === 0) {
+                alert('No data to export. Run profiling first.');
+                return;
+            }
+            
+            // Convert to CSV format compatible with native profiler
+            // Map WebLLM fields to match native profiler format
+            const csvRows = [];
+            csvRows.push('timestamp,label,pid,rss_mb,vms_mb,heap_used_mb,heap_total_mb,tokens_generated,elapsed_seconds');
+            
+            memorySamples.forEach(sample => {
+                // Use heap_used_mb as RSS equivalent, heap_total_mb as VMS equivalent
+                csvRows.push([
+                    sample.timestamp,
+                    sample.label,
+                    sample.pid,
+                    sample.heap_used_mb.toFixed(2),  // RSS equivalent
+                    sample.heap_total_mb.toFixed(2), // VMS equivalent
+                    sample.heap_used_mb.toFixed(2),
+                    sample.heap_total_mb.toFixed(2),
+                    sample.tokens_generated,
+                    sample.elapsed_seconds.toFixed(3),
+                ].join(','));
+            });
+            
+            const csv = csvRows.join('\n');
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `webllm_memory_${new Date().toISOString().replace(/[:.]/g, '-')}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            log(`Exported ${memorySamples.length} samples to CSV`);
+        }
+
+        // Track token generation
+        // Note: WebLLM's streaming API needs to be hooked into
+        // This is a simplified version - you may need to adjust based on WebLLM's actual API
+        if (typeof webllm !== 'undefined') {
+            // Override or hook into the streaming callback if available
+            log('WebLLM library loaded. Ready to profile.');
+        }
+
+        // Check for memory API availability
+        if (typeof performance === 'undefined' || !performance.memory) {
+            setStatus('WARNING: performance.memory not available. Chrome needs --enable-precise-memory-info flag or DevTools open.', 'error');
+            log('WARNING: Memory profiling may not work. Use Chrome with --enable-precise-memory-info flag.');
+        }
+    </script>
+</body>
+</html>

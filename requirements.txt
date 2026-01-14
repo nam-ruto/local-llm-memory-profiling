@@ -1,0 +1,10 @@
+# Memory Profiling Framework for On-Device LLM Runtimes
+# Research project: "An Empirical Study of KV-Cache Memory Behavior in On-Device LLM Runtimes"
+
+# Core dependencies
+psutil>=5.9.0  # Process and system utilities for memory monitoring
+requests>=2.31.0  # HTTP client for Ollama API
+
+# Optional: for data analysis
+# pandas>=2.0.0  # Uncomment if you want to analyze CSV files
+# matplotlib>=3.7.0  # Uncomment if you want to plot memory usage
