@@ -80,16 +80,21 @@ class MemoryProfiler:
         except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
             return None
     
-    def profile(self, duration: Optional[float] = None, max_samples: Optional[int] = None):
+    def profile(self, duration: Optional[float] = None, max_samples: Optional[int] = None, 
+                cooldown: Optional[float] = None, cooldown_threshold: float = 0.05):
         """
         Profile memory usage over time.
         
         Args:
-            duration: Maximum duration in seconds (None = until process exits)
+            duration: Maximum duration in seconds (None = until process exits or cooldown)
             max_samples: Maximum number of samples (None = unlimited)
+            cooldown: Stop after memory returns to baseline and stays stable for this many seconds
+            cooldown_threshold: Percentage change threshold for considering memory "stable" (default: 5%)
         """
         print(f"Looking for process matching: '{self.process_identifier}'")
         print(f"Sampling interval: {self.interval}s")
+        if cooldown:
+            print(f"Auto-stop: Will stop after {cooldown}s of stable memory (threshold: {cooldown_threshold*100:.1f}%)")
         
         start_time = time.time()
         sample_count = 0
@@ -110,16 +115,29 @@ class MemoryProfiler:
             sys.exit(1)
         
         print(f"Found process: PID {proc.pid}")
+        
+        # Establish baseline (average of first few samples)
+        baseline_samples = []
+        baseline_window = 5
+        baseline_established = False
+        baseline_rss = None
+        
+        # Cooldown tracking
+        cooldown_start = None
+        last_rss = None
+        
         print(f"Profiling started. Press Ctrl+C to stop early.\n")
         
         try:
             while True:
                 # Check duration limit
                 if duration and (time.time() - start_time) >= duration:
+                    print(f"\nMaximum duration ({duration}s) reached.")
                     break
                 
                 # Check sample limit
                 if max_samples and sample_count >= max_samples:
+                    print(f"\nMaximum samples ({max_samples}) reached.")
                     break
                 
                 # Sample memory
@@ -127,9 +145,41 @@ class MemoryProfiler:
                 if sample:
                     self.samples.append(sample)
                     sample_count += 1
+                    current_rss = sample['rss_mb']
+                    
                     print(f"[{sample['timestamp']}] PID {sample['pid']}: "
-                          f"RSS={sample['rss_mb']:.2f} MB, "
+                          f"RSS={current_rss:.2f} MB, "
                           f"VMS={sample['vms_mb']:.2f} MB")
+                    
+                    # Establish baseline from first few samples
+                    if not baseline_established:
+                        baseline_samples.append(current_rss)
+                        if len(baseline_samples) >= baseline_window:
+                            baseline_rss = sum(baseline_samples) / len(baseline_samples)
+                            baseline_established = True
+                            print(f"Baseline RSS established: {baseline_rss:.2f} MB\n")
+                    
+                    # Cooldown detection: stop when memory returns to baseline and stays stable
+                    if cooldown and baseline_established:
+                        if last_rss is not None:
+                            # Check if memory is within threshold of baseline
+                            rss_change = abs(current_rss - baseline_rss) / baseline_rss
+                            is_stable = rss_change <= cooldown_threshold
+                            
+                            if is_stable:
+                                if cooldown_start is None:
+                                    cooldown_start = time.time()
+                                    print(f"Memory returned to baseline. Starting cooldown timer ({cooldown}s)...")
+                                elif (time.time() - cooldown_start) >= cooldown:
+                                    print(f"\nMemory stable at baseline for {cooldown}s. Stopping profiling.")
+                                    break
+                            else:
+                                # Memory changed significantly, reset cooldown
+                                if cooldown_start is not None:
+                                    print("Memory increased again. Resetting cooldown timer.")
+                                cooldown_start = None
+                        
+                        last_rss = current_rss
                 else:
                     # Process has terminated
                     print(f"\nProcess {proc.pid} has terminated.")
@@ -144,6 +194,11 @@ class MemoryProfiler:
                 if new_proc and new_proc.pid != proc.pid:
                     print(f"Process PID changed: {proc.pid} -> {new_proc.pid}")
                     proc = new_proc
+                    # Reset baseline when PID changes
+                    baseline_established = False
+                    baseline_samples = []
+                    cooldown_start = None
+                    last_rss = None
                     
         except KeyboardInterrupt:
             print("\n\nProfiling interrupted by user.")
@@ -171,8 +226,8 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Profile Ollama process
-  python memory_profiler.py --name "ollama" --label "ollama-run1" --output ollama_memory.csv
+  # Profile Ollama process (auto-stops when memory returns to baseline)
+  python memory_profiler.py --name "ollama" --label "ollama-run1" --output ollama_memory.csv --cooldown 3.0
   
   # Profile llama.cpp with 50ms sampling
   python memory_profiler.py --name "llama-cli" --label "llamacpp-run1" --interval 0.05 --output llamacpp_memory.csv
@@ -222,6 +277,20 @@ Examples:
         help='Maximum number of samples to collect (default: unlimited)'
     )
     
+    parser.add_argument(
+        '--cooldown',
+        type=float,
+        default=None,
+        help='Auto-stop after memory returns to baseline and stays stable for N seconds (useful for long-running servers like Ollama)'
+    )
+    
+    parser.add_argument(
+        '--cooldown-threshold',
+        type=float,
+        default=0.05,
+        help='Percentage threshold for considering memory "stable" relative to baseline (default: 0.05 = 5%%)'
+    )
+    
     args = parser.parse_args()
     
     profiler = MemoryProfiler(
@@ -230,7 +299,12 @@ Examples:
         interval=args.interval
     )
     
-    profiler.profile(duration=args.duration, max_samples=args.max_samples)
+    profiler.profile(
+        duration=args.duration, 
+        max_samples=args.max_samples,
+        cooldown=args.cooldown,
+        cooldown_threshold=args.cooldown_threshold
+    )
     profiler.save_csv(args.output)
 
 
