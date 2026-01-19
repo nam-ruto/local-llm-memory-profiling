@@ -1,0 +1,45 @@
+{
+  "generated_at": "2026-01-19T17:05:29.593251+00:00",
+  "tokenizer": {
+    "llama_tokenize": "/Users/namhoang/Documents/2. Coding-space/llama/llama.cpp/build/bin/llama-tokenize",
+    "model_path": "/Users/namhoang/Library/Caches/llama.cpp/hugging-quants_Llama-3.2-3B-Instruct-Q4_K_M-GGUF_llama-3.2-3b-instruct-q4_k_m.gguf"
+  },
+  "prompts": [
+    {
+      "context_tokens": 1024,
+      "path": "inputs/prompts/ctx_1024.txt",
+      "tokens": 1024,
+      "build_seconds": 12.789512
+    },
+    {
+      "context_tokens": 2048,
+      "path": "inputs/prompts/ctx_2048.txt",
+      "tokens": 2048,
+      "build_seconds": 13.642551
+    },
+    {
+      "context_tokens": 4096,
+      "path": "inputs/prompts/ctx_4096.txt",
+      "tokens": 4096,
+      "build_seconds": 14.668477
+    },
+    {
+      "context_tokens": 8192,
+      "path": "inputs/prompts/ctx_8192.txt",
+      "tokens": 8192,
+      "build_seconds": 15.600799
+    },
+    {
+      "context_tokens": 16384,
+      "path": "inputs/prompts/ctx_16384.txt",
+      "tokens": 16384,
+      "build_seconds": 16.904976
+    },
+    {
+      "context_tokens": 32768,
+      "path": "inputs/prompts/ctx_32768.txt",
+      "tokens": 32768,
+      "build_seconds": 18.036585
+    }
+  ]
+}

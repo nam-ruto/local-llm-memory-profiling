@@ -13,11 +13,11 @@
 
 [paths]
 # llama.cpp binaries (either absolute paths, or rely on PATH by leaving blank)
-llama_cli = ""          # e.g. "/path/to/llama.cpp/build/bin/llama-cli"
-llama_tokenize = ""     # e.g. "/path/to/llama.cpp/build/bin/llama-tokenize"
+llama_cli = "/Users/namhoang/Documents/2. Coding-space/llama/llama.cpp/build/bin/llama-cli"          # e.g. "/path/to/llama.cpp/build/bin/llama-cli"
+llama_tokenize = "/Users/namhoang/Documents/2. Coding-space/llama/llama.cpp/build/bin/llama-tokenize"     # e.g. "/path/to/llama.cpp/build/bin/llama-tokenize"
 
 # Model path for llama.cpp (GGUF). This should be llama3.2:3b GGUF.
-llamacpp_model = ""     # e.g. "/Users/you/models/llama-3.2-3b-instruct.Q4_K_M.gguf"
+llamacpp_model = "/Users/namhoang/Library/Caches/llama.cpp/hugging-quants_Llama-3.2-3B-Instruct-Q4_K_M-GGUF_llama-3.2-3b-instruct-q4_k_m.gguf"     # e.g. "/Users/you/models/llama-3.2-3b-instruct.Q4_K_M.gguf"
 
 # Where generated prompts live (exact-token prompts)
 prompt_dir = "inputs/prompts"
