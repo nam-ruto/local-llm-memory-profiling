@@ -1,0 +1,11 @@
+Write a detailed analysis of the impact of artificial intelligence on modern software development practices. Discuss how AI tools are changing the way developers write code, debug applications, and collaborate on projects. Include examples of specific AI technologies like large language models, code generation tools, and automated testing frameworks. Explain both the benefits and potential challenges that come with increased AI adoption in software engineering.
+
+Consider the following aspects:
+- How AI-assisted coding affects developer productivity
+- The role of AI in code review and quality assurance
+- Ethical considerations in AI-generated code
+- The future of software development with AI integration
+- Comparison between traditional development workflows and AI-enhanced workflows
+
+Provide a comprehensive response that covers technical details, real-world applications, and forward-looking perspectives on this evolving field.
+
