@@ -1,8 +1,6 @@
 # Memory Profiling Framework for On-Device LLM Runtimes
 
-A lightweight, reproducible memory profiling framework for measuring memory usage during LLM inference across different runtimes on macOS (Apple Silicon).
-
-**Research Project**: "An Empirical Study of KV-Cache Memory Behavior in On-Device LLM Runtimes"
+An Empirical Study of KV-Cache Memory Behavior in On-Device LLM Runtimes: This repo is a lightweight and simple memory profiling framework for measuring memory usage during LLM inference across different runtimes on macOS (Apple Silicon).
 
 ## Overview
 
@@ -14,7 +12,7 @@ This repo is currently focused on empirically studying **KV-cache memory behavio
 
 We treat **process RSS (unified memory)** as the practical “VRAM utilization” proxy on Apple Silicon.
 
-## KV-cache experiment suite (recommended)
+## KV-cache experiment suite
 
 This is the main workflow for the study:
 - **KV cache types**: `f16`, `q8_0`, `q4_0`
