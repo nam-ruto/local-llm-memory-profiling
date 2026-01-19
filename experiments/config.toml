@@ -20,8 +20,8 @@ llama_tokenize = ""     # e.g. "/path/to/llama.cpp/build/bin/llama-tokenize"
 llamacpp_model = ""     # e.g. "/Users/you/models/llama-3.2-3b-instruct.Q4_K_M.gguf"
 
 # Where generated prompts live (exact-token prompts)
-prompt_dir = "experimentals/prompts"
-prompt_manifest = "experimentals/prompts/manifest.json"
+prompt_dir = "inputs/prompts"
+prompt_manifest = "inputs/prompts/manifest.json"
 
 # Results output root (a timestamped subfolder will be created)
 results_root = "results"

@@ -6,8 +6,8 @@ This script uses llama.cpp's tokenizer (llama-tokenize) to ensure each prompt
 has an EXACT token count under the target model's tokenizer.
 
 Outputs:
-  - experimentals/prompts/ctx_<N>.txt for each N in config
-  - experimentals/prompts/manifest.json with metadata
+  - inputs/prompts/ctx_<N>.txt for each N in config
+  - inputs/prompts/manifest.json with metadata
 
 Usage:
   python experiments/generate_prompts.py --config experiments/config.toml
@@ -220,7 +220,7 @@ def main() -> None:
         print(f"ERROR: model not found: {model_path}", file=sys.stderr)
         sys.exit(2)
 
-    prompt_dir = paths.get("prompt_dir", "experimentals/prompts")
+    prompt_dir = paths.get("prompt_dir", "inputs/prompts")
     manifest_path = paths.get("prompt_manifest", os.path.join(prompt_dir, "manifest.json"))
 
     llama_tokenize = _resolve_bin(paths.get("llama_tokenize", ""), "llama-tokenize")
