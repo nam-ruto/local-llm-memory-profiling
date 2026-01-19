@@ -35,3 +35,5 @@ dist/
 
 # environment variables
 .env
+
+legacy/

@@ -6,12 +6,52 @@ A lightweight, reproducible memory profiling framework for measuring memory usag
 
 ## Overview
 
-This framework enables systematic memory profiling of:
-- **Ollama** (via HTTP API)
-- **llama.cpp** (via CLI)
-- **WebLLM** (via browser JavaScript)
+This repo is currently focused on empirically studying **KV-cache memory behavior** for **local inference engines**:
+- **Ollama** (API-driven, server process)
+- **llama.cpp** (raw CLI)
 
-All profilers output CSV data in a consistent format for easy comparison.
+**WebLLM is temporarily out of scope** for this refactor.
+
+We treat **process RSS (unified memory)** as the practical “VRAM utilization” proxy on Apple Silicon.
+
+## KV-cache experiment suite (recommended)
+
+This is the main workflow for the study:
+- **KV cache types**: `f16`, `q8_0`, `q4_0`
+- **Context sweep**: 1k → 32k **exact tokens** (generated with `llama-tokenize`)
+- **Metrics**: baseline idle RSS, peak RSS during prefill, peak RSS overall, prefill TPS, gen TPS
+
+### 1) Configure paths + sweep
+
+Edit `experiments/config.toml`:
+- Set `[paths].llamacpp_model` to your **llama3.2:3b GGUF** path
+- Set `[paths].llama_cli` and `[paths].llama_tokenize` (or ensure they’re on PATH)
+- Set `[ollama].model` to your Ollama tag for llama3.2:3b (and pull it)
+
+### 2) Generate exact-token prompts
+
+```bash
+uv sync
+source .venv/bin/activate
+python experiments/generate_prompts.py --config experiments/config.toml
+```
+
+This writes:
+- `experimentals/prompts/ctx_<N>.txt` for each context length
+- `experimentals/prompts/manifest.json`
+
+### 3) Run the suite
+
+**Important (Ollama):** `experiments/run_suite.py` starts its own `ollama serve` and restarts it per KV-cache type.
+If you already have Ollama running as a background service, stop it first so the port isn’t in use.
+```bash
+python experiments/run_suite.py --config experiments/config.toml
+```
+
+Outputs:
+- `results/<timestamp>/runs.csv` (one row per run)
+- `results/<timestamp>/traces/*.csv` (memory time-series per run)
+- `results/<timestamp>/logs/*` (stderr / server logs)
 
 ## Installation
 
@@ -20,8 +60,7 @@ All profilers output CSV data in a consistent format for easy comparison.
 - Python 3.8+
 - macOS (Apple Silicon)
 - For Ollama: [Ollama installed](https://ollama.ai)
-- For llama.cpp: [llama.cpp built](https://github.com/ggerganov/llama.cpp)
-- For WebLLM: Chrome browser
+- For llama.cpp: [llama.cpp built](https://github.com/ggml-org/llama.cpp) with Metal support (`LLAMA_METAL=1`), plus `llama-cli` and `llama-tokenize`
 
 ### Setup
 
@@ -48,14 +87,16 @@ pip install -r requirements.txt
 
 **Note**: This project uses `pyproject.toml` for dependency management. The `requirements.txt` file is kept for backward compatibility.
 
-## Usage
+## Legacy (deprecated)
 
-### 1. Memory Profiler (Core Tool)
+The scripts below are kept for ad-hoc debugging only. The recommended workflow is the **KV-cache experiment suite** above.
+
+### 1. Memory Profiler (legacy)
 
 The memory profiler monitors any process by name or command substring and samples memory at fixed intervals.
 
 ```bash
-python memory_profiler.py --name "ollama" --label "ollama-run1" --output results.csv
+python legacy/memory_profiler.py --name "ollama" --label "ollama-run1" --output results.csv
 ```
 
 **Options:**
@@ -74,17 +115,17 @@ timestamp,label,pid,rss_mb,vms_mb
 
 The profiler automatically detects when the target process starts and stops sampling when it exits.
 
-### 2. Ollama Runner
+### 2. Ollama Runner (legacy)
 
 Runs deterministic inference using Ollama's HTTP API.
 
 ```bash
 # Basic usage
-python run_ollama.py --model llama3.2:1b --prompt "The quick brown fox"
+python legacy/run_ollama.py --model llama3.2:latest --prompt "The quick brown fox"
 
 # With custom parameters
-python run_ollama.py \
-  --model llama3.2:1b \
+python legacy/run_ollama.py \
+  --model llama3.2:latest \
   --prompt "Once upon a time" \
   --max-tokens 100 \
   --temperature 0.0
@@ -101,16 +142,16 @@ python run_ollama.py \
 - `--temperature`: Sampling temperature (default: 0.0 for deterministic)
 - `--base-url`: Ollama API URL (default: http://localhost:11434)
 
-### 3. llama.cpp Runner
+### 3. llama.cpp Runner (legacy)
 
 Runs deterministic inference using llama.cpp CLI.
 
 ```bash
 # Basic usage (auto-detects llama-cli)
-python run_llamacpp.py --model models/llama-3.2-1b.gguf --prompt "The quick brown fox"
+python legacy/run_llamacpp.py --model model.gguf --prompt "The quick brown fox"
 
 # With custom executable path
-python run_llamacpp.py \
+python legacy/run_llamacpp.py \
   --model model.gguf \
   --prompt "Once upon a time" \
   --n-predict 100 \
@@ -130,8 +171,11 @@ python run_llamacpp.py \
 - `--n-threads`: Number of threads (default: auto)
 - `--n-ctx`: Context window size (default: 512)
 
-### 4. WebLLM Profiler
+### 4. WebLLM Profiler (deferred)
 
+> WebLLM is temporarily out of scope for the KV-cache quantization study refactor.
+> The primary workflow is the experiment suite under `experiments/`.
+> The section below is kept for reference and may be revisited later.
 Memory profiling for browser-based LLM inference.
 
 #### Quick Start
@@ -139,11 +183,11 @@ Memory profiling for browser-based LLM inference.
 1. **Open the profiler page:**
    ```bash
    # Option 1: Open directly in Chrome
-   open -a "Google Chrome" webllm_profiler.html
+   open -a "Google Chrome" legacy/webllm/webllm_profiler.html
    
    # Option 2: Serve via local server (recommended)
    python -m http.server 8000
-   # Then open http://localhost:8000/webllm_profiler.html
+   # Then open http://localhost:8000/legacy/webllm/webllm_profiler.html
    ```
 
 2. **Enable memory API in Chrome:**
@@ -152,7 +196,7 @@ Memory profiling for browser-based LLM inference.
    /Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome \
      --enable-precise-memory-info \
      --enable-memory-info \
-     webllm_profiler.html
+     legacy/webllm/webllm_profiler.html
    ```
 
 3. **Use the interface:**
@@ -164,7 +208,7 @@ Memory profiling for browser-based LLM inference.
 
 #### Advanced Usage
 
-For programmatic control, use the `WebLLMProfiler` class from `webllm_profiler_advanced.js`:
+For programmatic control, use the `WebLLMProfiler` class from `legacy/webllm/webllm_profiler_advanced.js`:
 
 ```javascript
 const profiler = new WebLLMProfiler('Llama-3.2-1B-Instruct-q4f16_1', {
@@ -307,11 +351,19 @@ print(f"WebLLM peak heap: {webllm['heap_used_mb'].max():.2f} MB")
 
 ```
 kv-caching/
-├── memory_profiler.py          # Core memory profiler
-├── run_ollama.py                # Ollama runner script
-├── run_llamacpp.py              # llama.cpp runner script
-├── webllm_profiler.html         # WebLLM profiler UI
-├── webllm_profiler_advanced.js  # Advanced WebLLM profiler class
+├── experiments/
+│   ├── config.toml              # Sweep grid + paths
+│   ├── generate_prompts.py      # Exact-token prompt generator (via llama-tokenize)
+│   ├── run_suite.py             # Main experiment runner (writes results/)
+│   ├── ollama_engine.py         # Ollama server + request timing helpers
+│   └── llamacpp_engine.py       # llama.cpp invocation + timing parser
+├── profiling/
+│   └── process_sampler.py       # RSS/VMS sampler + window metric helpers
+├── experimentals/
+│   ├── prompts/                 # ctx_<N>.txt + manifest.json (generated)
+│   └── README.md                # Prompt-file usage notes
+├── results/                     # outputs (timestamped) from run_suite.py
+├── legacy/                      # deprecated one-off scripts / WebLLM artifacts
 ├── pyproject.toml               # Project configuration (uv/pip standard)
 ├── uv.lock                      # Lock file for reproducible builds (uv)
 ├── requirements.txt             # Python dependencies (backward compatibility)
@@ -335,7 +387,7 @@ The `requirements.txt` file is kept for backward compatibility, but `pyproject.t
 
 - **RSS (Resident Set Size)**: Physical memory currently in RAM
 - **VMS (Virtual Memory Size)**: Total virtual memory (includes swapped/mapped)
-- **Heap (WebLLM)**: JavaScript heap usage (closest to RSS equivalent)
+- **VRAM proxy (Apple Silicon)**: We treat **process RSS** as a practical unified-memory proxy for “VRAM utilization”
 
 ### Alignment with Token Generation
 

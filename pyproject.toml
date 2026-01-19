@@ -42,11 +42,10 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = []
 include = [
-    "memory_profiler.py",
-    "run_ollama.py",
-    "run_llamacpp.py",
-    "webllm_profiler.html",
-    "webllm_profiler_advanced.js",
+    "experiments/**",
+    "profiling/**",
+    "experimentals/**",
+    "legacy/**",
     "README.md",
 ]
 

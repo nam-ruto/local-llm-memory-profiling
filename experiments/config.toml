@@ -1,0 +1,67 @@
+## Experiment configuration for KV-cache memory behavior study
+##
+## Goal:
+## - Compare llama.cpp (CLI) vs Ollama (API)
+## - Sweep KV-cache quantization: f16, q8_0, q4_0
+## - Sweep prompt context length: 1k -> 32k tokens
+## - Measure (proxy VRAM): process RSS (unified memory) on Apple Silicon
+## - Measure: baseline idle RSS, peak RSS during prefill, peak RSS overall, and TPS
+##
+## Notes:
+## - Ollama KV-cache quantization is controlled via env vars and requires restarting `ollama serve`.
+## - Exact token counts are generated using llama.cpp's tokenizer (see `experiments/generate_prompts.py`).
+
+[paths]
+# llama.cpp binaries (either absolute paths, or rely on PATH by leaving blank)
+llama_cli = ""          # e.g. "/path/to/llama.cpp/build/bin/llama-cli"
+llama_tokenize = ""     # e.g. "/path/to/llama.cpp/build/bin/llama-tokenize"
+
+# Model path for llama.cpp (GGUF). This should be llama3.2:3b GGUF.
+llamacpp_model = ""     # e.g. "/Users/you/models/llama-3.2-3b-instruct.Q4_K_M.gguf"
+
+# Where generated prompts live (exact-token prompts)
+prompt_dir = "experimentals/prompts"
+prompt_manifest = "experimentals/prompts/manifest.json"
+
+# Results output root (a timestamped subfolder will be created)
+results_root = "results"
+
+[sweep]
+engine = ["ollama", "llamacpp"]
+kv_cache_type = ["f16", "q8_0", "q4_0"]
+context_tokens = [1024, 2048, 4096, 8192, 16384, 32768]
+
+# Generation settings (kept constant across sweeps)
+max_gen_tokens = 256
+temperature = 0.0
+
+[sampling]
+# Memory sampling interval (seconds). Use smaller intervals for short prefill.
+interval_s = 0.05
+
+# Baseline sampling window (seconds) measured when engine is idle (or best-effort).
+baseline_window_s = 2.0
+
+[ollama]
+base_url = "http://localhost:11434"
+model = "llama3.2:latest"  # Update to your llama3.2:3b tag once pulled, e.g. "llama3.2:3b"
+
+# KV-cache controls (requires restarting `ollama serve` to take effect)
+flash_attention = true
+
+# Warmup request (optional) to ensure model is loaded before measuring baseline.
+warmup = true
+warmup_max_gen_tokens = 8
+warmup_prompt = "Warmup."
+
+[llamacpp]
+# Metal offload: set -ngl (GPU layers). Use a large value to offload as much as possible.
+ngl = 999
+
+# Context size for llama.cpp should be >= context_tokens + max_gen_tokens + margin.
+ctx_margin_tokens = 128
+
+# KV-cache types (applied to both K and V; we sweep them together for this study)
+cache_type_k = ""  # overridden by sweep
+cache_type_v = ""  # overridden by sweep
+
