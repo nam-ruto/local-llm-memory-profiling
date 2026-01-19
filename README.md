@@ -35,8 +35,8 @@ python experiments/generate_prompts.py --config experiments/config.toml
 ```
 
 This writes:
-- `experimentals/prompts/ctx_<N>.txt` for each context length
-- `experimentals/prompts/manifest.json`
+- `inputs/prompts/ctx_<N>.txt` for each context length
+- `inputs/prompts/manifest.json`
 
 ### 3) Run the suite
 
@@ -357,7 +357,7 @@ kv-caching/
 │   └── llamacpp_engine.py       # llama.cpp invocation + timing parser
 ├── profiling/
 │   └── process_sampler.py       # RSS/VMS sampler + window metric helpers
-├── experimentals/
+├── inputs/
 │   ├── prompts/                 # ctx_<N>.txt + manifest.json (generated)
 │   └── README.md                # Prompt-file usage notes
 ├── results/                     # outputs (timestamped) from run_suite.py

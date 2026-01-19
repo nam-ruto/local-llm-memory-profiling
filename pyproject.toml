@@ -44,7 +44,7 @@ packages = []
 include = [
     "experiments/**",
     "profiling/**",
-    "experimentals/**",
+    "inputs/**",
     "legacy/**",
     "README.md",
 ]
