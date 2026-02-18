@@ -1,14 +1,14 @@
 # Memory Profiling Framework for On-Device LLM Runtimes
 
-An Empirical Study of KV-Cache Memory Behavior in On-Device LLM Runtimes: This repo is a lightweight and simple memory profiling framework for measuring memory usage during LLM inference across different runtimes on macOS (Apple Silicon).
+An Empirical Study of KV-Cache Memory Behavior: This repo provides a lightweight memory profiling framework for measuring how KV-cache quantization (f16, q8_0, q4_0) and context length (1k → 32k tokens) affect memory usage and throughput in on-device LLM inference on macOS (Apple Silicon).
 
 ## Overview
 
-This repo is currently focused on empirically studying **KV-cache memory behavior** for **local inference engines**:
+This repo empirically studies **KV-cache memory behavior** by comparing:
 - **Ollama** (API-driven, server process)
 - **llama.cpp** (raw CLI)
 
-We treat **process RSS (unified memory)** as the practical “VRAM utilization” proxy on Apple Silicon.
+We measure **process RSS (unified memory)** as a practical proxy for "VRAM utilization" on Apple Silicon, along with prefill/generation throughput (TPS).
 
 ## Quick Takeaway
 
