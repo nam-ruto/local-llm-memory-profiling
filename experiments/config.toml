@@ -13,7 +13,7 @@
 
 [paths]
 # llama.cpp binaries (either absolute paths, or rely on PATH by leaving blank)
-llama_cli = "/Users/namhoang/Documents/2. Coding-space/llama/llama.cpp/build/bin/llama-cli"          # e.g. "/path/to/llama.cpp/build/bin/llama-cli"
+llama_cli = "/Users/namhoang/Documents/2. Coding-space/llama/llama.cpp/build/bin/llama-completion"   # one-shot binary; use -no-cnv for non-interactive (see tools/completion/README.md)
 llama_tokenize = "/Users/namhoang/Documents/2. Coding-space/llama/llama.cpp/build/bin/llama-tokenize"     # e.g. "/path/to/llama.cpp/build/bin/llama-tokenize"
 
 # Model path for llama.cpp (GGUF). This should be llama3.2:3b GGUF.
@@ -27,7 +27,8 @@ prompt_manifest = "inputs/prompts/manifest.json"
 results_root = "results"
 
 [sweep]
-engine = ["ollama", "llamacpp"]
+# Single run: Ollama + q4_0 + 1024 (restore full sweep when done testing)
+engine = ["ollama"]
 kv_cache_type = ["f16", "q8_0", "q4_0"]
 context_tokens = [1024, 2048, 4096, 8192, 16384, 32768]
 
@@ -44,7 +45,7 @@ baseline_window_s = 2.0
 
 [ollama]
 base_url = "http://localhost:11434"
-model = "llama3.2:latest"  # Update to your llama3.2:3b tag once pulled, e.g. "llama3.2:3b"
+model = "llama3.2:3b"  # Update to your llama3.2:3b tag once pulled, e.g. "llama3.2:3b"
 
 # KV-cache controls (requires restarting `ollama serve` to take effect)
 flash_attention = true

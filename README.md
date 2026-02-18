@@ -8,9 +8,19 @@ This repo is currently focused on empirically studying **KV-cache memory behavio
 - **Ollama** (API-driven, server process)
 - **llama.cpp** (raw CLI)
 
-**WebLLM is temporarily out of scope** for this refactor.
-
 We treat **process RSS (unified memory)** as the practical “VRAM utilization” proxy on Apple Silicon.
+
+## Quick Takeaway
+
+- **llama.cpp:** Peak process RSS grows with context length (1k → 32k). KV-cache quantization (**q4_0**, **q8_0**) cuts peak memory substantially at long context (e.g. ~3.2 GB vs ~5.8 GB at 32k for q4_0 vs f16). 
+- **Ollama:** In our runs the server used a **fixed 4096-token context** (`OLLAMA_CONTEXT_LENGTH=4096`), so longer prompts were truncated and RSS stayed flat; set a higher context length when starting the server to see Ollama memory scale with context. See `results/INSIGHT_REPORT.md` for full findings.
+
+**Peak process RSS vs context length** (by engine and KV-cache type):
+
+![Peak process RSS vs context length (by engine and KV-cache type)](results/figures/peak_rss_mb.png)
+
+- **llama.cpp (red / purple / brown):** Peak total RSS increases with context length for all KV types. f16 uses the most memory; q8_0 and q4_0 reduce it, especially at 16k–32k tokens.
+- **Ollama (blue / orange / green):** The lines are **horizontal** because the Ollama server was started with the default **4096-token context cap**. Prompts at 8k, 16k, and 32k were truncated to 4096 tokens, so the KV cache (and thus RSS) never grew beyond the 4k allocation. The flat trend is **not** better memory scaling—it reflects a fixed cap. To compare fairly with llama.cpp at long context, set `OLLAMA_CONTEXT_LENGTH` (e.g. to 32768) when starting the server.
 
 ## KV-cache experiment suite
 
@@ -287,6 +297,17 @@ print(f"llama.cpp peak RSS: {llamacpp['rss_mb'].max():.2f} MB")
 print(f"WebLLM peak heap: {webllm['heap_used_mb'].max():.2f} MB")
 ```
 
+### Visualization
+
+To plot peak RSS, prefill TPS, and gen TPS from one or more result directories (e.g. Ollama + llama.cpp):
+
+```bash
+uv sync --extra analysis
+python experiments/visualize_runs.py --runs results/<timestamp1> results/<timestamp2> --out results/figures
+```
+
+This writes `results/figures/peak_rss_mb.png`, `prefill_tps.png`, and `gen_tps.png`. Omit `--out` to show figures interactively instead of saving.
+
 ## Common Pitfalls & Solutions
 
 ### macOS Apple Silicon Specific
@@ -353,6 +374,7 @@ kv-caching/
 │   ├── config.toml              # Sweep grid + paths
 │   ├── generate_prompts.py      # Exact-token prompt generator (via llama-tokenize)
 │   ├── run_suite.py             # Main experiment runner (writes results/)
+│   ├── visualize_runs.py       # Plot RSS + TPS from one or more result dirs (needs --extra analysis)
 │   ├── ollama_engine.py         # Ollama server + request timing helpers
 │   └── llamacpp_engine.py       # llama.cpp invocation + timing parser
 ├── profiling/
@@ -360,7 +382,7 @@ kv-caching/
 ├── inputs/
 │   ├── prompts/                 # ctx_<N>.txt + manifest.json (generated)
 │   └── README.md                # Prompt-file usage notes
-├── results/                     # outputs (timestamped) from run_suite.py
+├── results/                     # outputs (timestamped) from run_suite.py; figures/ if using visualize_runs.py --out
 ├── legacy/                      # deprecated one-off scripts / WebLLM artifacts
 ├── pyproject.toml               # Project configuration (uv/pip standard)
 ├── uv.lock                      # Lock file for reproducible builds (uv)

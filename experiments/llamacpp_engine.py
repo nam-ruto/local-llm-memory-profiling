@@ -91,7 +91,7 @@ def run_llama_cli(
         raise RuntimeError(f"Model not found: {model_path}")
 
     cmd = [
-        _bin(llama_cli, "llama-cli"),
+        _bin(llama_cli, "llama-completion"),
         "-m",
         model_path,
         "-p",
@@ -108,6 +108,7 @@ def run_llama_cli(
         cache_type_k,
         "--cache-type-v",
         cache_type_v,
+        "-no-cnv",  # disable conversation mode so process exits after one prompt (llama-completion)
     ]
 
     t0 = time.time()
@@ -148,7 +149,7 @@ def measure_run_with_memory(
     """
     # Start llama-cli as a subprocess so we can sample its PID while it runs.
     cmd = [
-        _bin(llama_cli, "llama-cli"),
+        _bin(llama_cli, "llama-completion"),
         "-m",
         model_path,
         "-p",
@@ -165,6 +166,7 @@ def measure_run_with_memory(
         cache_type_k,
         "--cache-type-v",
         cache_type_v,
+        "-no-cnv",  # disable conversation mode so process exits after one prompt (llama-completion)
     ]
 
     popen = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
